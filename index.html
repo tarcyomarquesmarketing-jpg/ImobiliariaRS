@@ -1467,49 +1467,32 @@ function extractVimeoId(url) {
 }
 
 // CAROUSEL EDUCATIVO
-const carouselData = [
-  {
-    number: 1,
-    title: "Entenda os Custos do Financiamento",
-    description: "Conheça os principais valores envolvidos além do imóvel na hora da compra.",
-    fullText: "Quando você financia um imóvel, além do valor do bem, há diversos custos envolvidos no processo. Estes incluem a taxa de avaliação do imóvel, taxas administrativas cobradas pelos bancos, impostos como o ITBI e o registro em cartório. É importante estar preparado para estes custos adicionais ao planejar sua compra. Um bom corretor te ajuda a entender cada uma dessas despesas."
-  },
-  {
-    number: 2,
-    title: "Entrada Mínima É Valor Financiado",
-    description: "Saiba como os bancos calculam entrada e parcelas do financiamento.",
-    fullText: "A entrada mínima exigida pelos bancos é geralmente de 20% do valor do imóvel. Portanto, se o imóvel custa R$ 500 mil, você precisará ter pelo menos R$ 100 mil de entrada. O valor restante (R$ 400 mil) será financiado. Este valor é importante para você calcular se tem capacidade financeira para realizar o investimento imobiliário desejado."
-  },
-  {
-    number: 3,
-    title: "Taxa de Avaliação do Imóvel",
-    description: "Valor cobrado para avaliar o imóvel (R$ 750 a R$ 3 mil).",
-    fullText: "Os bancos exigem uma avaliação técnica do imóvel antes de aprovar o financiamento. Esta avaliação é feita por um profissional independente e determina o valor real do bem. A taxa de avaliação varia entre R$ 750 e R$ 3 mil, dependendo do valor do imóvel e do banco. Este custo é cobrado antes da aprovação do financiamento e deve ser considerado no orçamento inicial."
-  },
-  {
-    number: 4,
-    title: "Taxas Cobradas pelos Bancos",
-    description: "Conheça TAC, MIP e Tarifa Administrativa (variam por banco).",
-    fullText: "Os bancos cobram diversas taxas no financiamento imobiliário: TAC (Taxa de Abertura de Crédito), MIP (Monitoramento de Imóvel) e Tarifa Administrativa. A TAC é cobrada uma única vez e varia entre 0,5% a 2% do valor financiado. O MIP é uma taxa mensal para cobrir custos de vistoria. Essas taxas variam bastante entre bancos, por isso é importante comparar propostas diferentes antes de escolher."
-  },
-  {
-    number: 5,
-    title: "ITBI — Imposto de Transmissão",
-    description: "Imposto municipal cobrado na transferência da propriedade (2-3% do valor).",
-    fullText: "O ITBI é um imposto municipal que deve ser pago quando há transferência de propriedade de um imóvel. A alíquota varia de 2% a 3% do valor do imóvel, dependendo de cada município. Este imposto é obrigatório e deve ser pago antes do registro em cartório. Em Recife, por exemplo, o ITBI é geralmente em torno de 3% do valor do imóvel."
-  },
-  {
-    number: 6,
-    title: "Registro do Imóvel",
-    description: "Cartório cobra 0,5% a 1% (garante sua propriedade).",
-    fullText: "O registro em cartório é essencial para garantir que o imóvel é de sua propriedade. O cartório cobra uma taxa que varia entre 0,5% e 1% do valor do imóvel. Este é um custo fundamental pois sem o registro, você não é o proprietário legal do bem. O registro também cria segurança jurídica e facilita futuras transações com o imóvel."
-  }
-];
-
+let carouselData = [];
 let carouselIndex = 0;
 let carouselAutoRotate;
 
+async function loadCarouselData() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/conteudo_educativo?select=*&status=eq.ativo&order=numero.asc`, {
+      headers: { apikey: SUPABASE_KEY }
+    });
+    const data = await res.json();
+    carouselData = data.map(card => ({
+      number: card.numero,
+      title: card.titulo,
+      description: card.descricao_curta,
+      fullText: card.descricao_completa
+    }));
+    initCarousel();
+  } catch (err) {
+    console.error('Erro ao carregar carousel:', err);
+    initCarousel();
+  }
+}
+
 function initCarousel() {
+  if (carouselData.length === 0) return;
+  
   renderCarouselCards();
   renderCarouselDots();
   startCarouselAutoRotate();
@@ -1592,9 +1575,9 @@ function openCarouselModal(idx) {
 
 // Init Carousel após DOM
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initCarousel);
+  document.addEventListener('DOMContentLoaded', loadCarouselData);
 } else {
-  initCarousel();
+  loadCarouselData();
 }
 
 </script>
