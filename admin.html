@@ -579,6 +579,89 @@ tbody tr:hover {
         <p>Clique em "+ Adicionar Imóvel" para começar</p>
       </div>
     </div>
+
+    <!-- SEÇÃO CAROUSEL EDUCATIVO -->
+    <div style="margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--color-border);">
+      <div class="content-header">
+        <h2>Carousel Educativo</h2>
+        <button class="btn-add-imovel" id="btn-add-carousel" onclick="openCarouselForm()">+ Novo Card</button>
+      </div>
+
+      <div class="message" id="carousel-message"></div>
+
+      <div class="table-container">
+        <table id="carousel-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Título</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="carousel-body">
+          </tbody>
+        </table>
+        <div class="empty-state" id="carousel-empty-state" style="display: none;">
+          <h3>Nenhum card cadastrado</h3>
+          <p>Clique em "+ Novo Card" para começar</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CAROUSEL -->
+<div class="modal-form" id="modal-carousel-form">
+  <div class="modal-form-content">
+    <h2 id="carousel-form-title">Novo Card</h2>
+    
+    <div class="message" id="carousel-form-message"></div>
+
+    <form id="carousel-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Número do Card *</label>
+          <input type="number" id="carousel-numero" min="1" placeholder="Ex: 1" required>
+        </div>
+      </div>
+
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Título *</label>
+          <input type="text" id="carousel-titulo" placeholder="Ex: Entenda os Custos" required>
+        </div>
+      </div>
+
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Descrição Curta (exibida no carousel) *</label>
+          <textarea id="carousel-descricao-curta" placeholder="Resumo de até 100 caracteres..." required style="min-height: 80px;"></textarea>
+        </div>
+      </div>
+
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Descrição Completa (exibida no modal) *</label>
+          <textarea id="carousel-descricao-completa" placeholder="Texto completo com detalhes..." required style="min-height: 150px;"></textarea>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Status *</label>
+          <select id="carousel-status" required>
+            <option value="ativo">Ativo</option>
+            <option value="inativo">Inativo</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-save">Salvar Card</button>
+        <button type="button" class="btn-cancel" id="btn-cancel-carousel-form" onclick="closeCarouselForm()">Cancelar</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -984,6 +1067,163 @@ function showFormMessage(text, type) {
   formMessage.style.display = 'block';
   setTimeout(() => formMessage.style.display = 'none', 4000);
 }
+
+// CAROUSEL EDUCATIVO
+let allCarousel = [];
+let carouselEditingId = null;
+
+async function loadCarousel() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/conteudo_educativo?select=*&order=numero.asc`, {
+      headers: { apikey: SUPABASE_KEY }
+    });
+    allCarousel = await res.json();
+    renderCarouselTable();
+  } catch (err) {
+    console.error('Erro ao carregar carousel:', err);
+  }
+}
+
+function renderCarouselTable() {
+  const tableBody = document.getElementById('carousel-body');
+  const emptyState = document.getElementById('carousel-empty-state');
+
+  tableBody.innerHTML = '';
+
+  if (allCarousel.length === 0) {
+    emptyState.style.display = 'block';
+    return;
+  }
+
+  emptyState.style.display = 'none';
+
+  allCarousel.forEach(card => {
+    const row = document.createElement('tr');
+    const statusBadge = card.status === 'ativo' 
+      ? '<span style="color: #10b981;">● Ativo</span>' 
+      : '<span style="color: #ef4444;">● Inativo</span>';
+    
+    row.innerHTML = `
+      <td>${card.numero}</td>
+      <td>${card.titulo}</td>
+      <td>${statusBadge}</td>
+      <td>
+        <button class="btn-edit" onclick="editCarousel('${card.id}')">Editar</button>
+        <button class="btn-delete" onclick="deleteCarousel('${card.id}')">Deletar</button>
+      </td>
+    `;
+    tableBody.appendChild(row);
+  });
+}
+
+function openCarouselForm() {
+  carouselEditingId = null;
+  document.getElementById('carousel-form-title').textContent = 'Novo Card';
+  document.getElementById('carousel-form').reset();
+  document.getElementById('modal-carousel-form').classList.add('active');
+}
+
+function closeCarouselForm() {
+  document.getElementById('modal-carousel-form').classList.remove('active');
+  carouselEditingId = null;
+}
+
+function editCarousel(id) {
+  const card = allCarousel.find(c => c.id === id);
+  if (!card) return;
+
+  carouselEditingId = id;
+  document.getElementById('carousel-form-title').textContent = 'Editar Card';
+
+  document.getElementById('carousel-numero').value = card.numero;
+  document.getElementById('carousel-titulo').value = card.titulo;
+  document.getElementById('carousel-descricao-curta').value = card.descricao_curta;
+  document.getElementById('carousel-descricao-completa').value = card.descricao_completa;
+  document.getElementById('carousel-status').value = card.status;
+
+  document.getElementById('modal-carousel-form').classList.add('active');
+}
+
+async function deleteCarousel(id) {
+  if (!confirm('Tem certeza que deseja deletar este card?')) return;
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/conteudo_educativo?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: { apikey: SUPABASE_KEY }
+    });
+    if (!res.ok) throw new Error('Erro ao deletar');
+    showCarouselMessage('✓ Card deletado com sucesso!', 'success');
+    loadCarousel();
+  } catch (err) {
+    showCarouselMessage('Erro ao deletar card', 'error');
+  }
+}
+
+document.getElementById('carousel-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const data = {
+    numero: parseInt(document.getElementById('carousel-numero').value),
+    titulo: document.getElementById('carousel-titulo').value,
+    descricao_curta: document.getElementById('carousel-descricao-curta').value,
+    descricao_completa: document.getElementById('carousel-descricao-completa').value,
+    status: document.getElementById('carousel-status').value
+  };
+
+  try {
+    if (carouselEditingId) {
+      // ATUALIZAR
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/conteudo_educativo?id=eq.${carouselEditingId}`, {
+        method: 'PATCH',
+        headers: {
+          apikey: SUPABASE_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) throw new Error('Erro ao atualizar');
+      showCarouselMessage('✓ Card atualizado com sucesso!', 'success');
+    } else {
+      // CRIAR
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/conteudo_educativo`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) throw new Error('Erro ao criar');
+      showCarouselMessage('✓ Card criado com sucesso!', 'success');
+    }
+
+    setTimeout(() => {
+      closeCarouselForm();
+      loadCarousel();
+    }, 1500);
+  } catch (err) {
+    showCarouselMessage('Erro ao salvar card', 'error');
+  }
+});
+
+function showCarouselMessage(text, type) {
+  const msg = document.getElementById('carousel-message');
+  msg.textContent = text;
+  msg.className = `message ${type}`;
+  msg.style.display = 'block';
+  setTimeout(() => msg.style.display = 'none', 4000);
+}
+
+// Carregar carousel ao fazer login
+async function updateDashboard() {
+  await loadImoveis();
+  await loadCarousel();
+}
+
+// Remover chamada original de loadImoveis e usar updateDashboard
+const originalLoadImoveis = loadImoveis;
+loadImoveis = updateDashboard;
 
 </script>
 </body>
